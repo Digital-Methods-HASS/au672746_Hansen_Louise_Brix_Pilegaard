@@ -1,0 +1,85 @@
+---
+title: '6:W43: Practicing functions with Gapminder'
+author: "Louise Brix Pilegaard Hansen"
+date: '2022-10-27'
+output: html_document
+---
+
+
+
+### Loading the data and packages
+```{r}
+library(gapminder)
+pacman::p_load("tidyverse")
+pacman::p_load("dplyr")
+df <- as.data.frame(gapminder)
+```
+
+
+# 1)
+
+Define a defensive function that calculates the Gross Domestic Product of a nation from the data available in the gapminder dataset. You can use the population and GDPpercapita columns for it. Using that function, calculate the GDP of Denmark in the following years: 1967, 1977, 1987, 1997, 2007, and 2017.
+
+
+```{r}
+gdp_fun <- function(country, year) {
+  stopifnot(is.character(country)) # stop function if country is not a character
+  stopifnot(is.numeric(year)) # stop function if year is not numeric
+  
+  row <- which(df$country == country & df$year == year) # finding the row of the data with the correct country and year 
+  gdppercap <- df[row, 6] # extracting the gdppercap (column 6)
+  pop <- df[row, 5] # extracting the population size (column 5)
+  gdp <- gdppercap*pop # calculating gdp
+  return(gdp)
+}
+```
+
+## calculating GDP for Denmark 
+```{r}
+years <- c(1967, 1977, 1987, 1997, 2007, 2017)
+
+for (year in years){
+  if (year %in% df$year){ # if the year is in the gapminder dataset, continue
+    gdp <- gdp_fun("Denmark", year) # running the function
+    print(paste0("In ", year, " the GDP for Denmark was ", gdp)) # preparing output
+  }
+  else {
+    print(paste0("No data for ", year))
+  }
+}
+```
+
+
+# 2)
+
+Write a script that loops over each country in the gapminder dataset, tests whether the country starts with a ‘B’ , and prints out whether the life expectancy is smaller than 50, between 50 and 70, or greater than 70. (Hint: remember the grepl function, and review the Control Flow tutorial)
+
+
+```{r}
+for (i in unique(df$country)){ # for every unique country in the dataset
+
+  if (grepl('^B', i)){
+    print(paste0(i, " starts with B"))
+  }
+  else{
+    print(paste0(i, " does not start with B"))
+  }
+  
+  country_dat <- df %>% # creating dataframe with the country's data
+    filter(country == i)
+  
+  lifeexp_mean <- mean(country_dat$lifeExp) # calculating mean life expectancy for each country
+  
+  if (lifeexp_mean < 50) {
+    print(paste0(i, " has a mean life expectancy of ", round(lifeexp_mean), " years, i.e., below 50 years"))
+  }
+  
+  else if (50 < lifeexp_mean & lifeexp_mean < 70){
+    print(paste0(i, " has a mean life expectancy of ", round(lifeexp_mean), " years, i.e., between 50 and 70 years"))
+  } 
+  else if (lifeexp_mean > 70){
+    print(paste0(i, " has a mean life expectancy of ", round(lifeexp_mean), " years, i.e., over 70 years"))
+  }
+}
+```
+
