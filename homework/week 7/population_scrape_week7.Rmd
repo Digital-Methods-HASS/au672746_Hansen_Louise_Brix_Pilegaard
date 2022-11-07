@@ -1,0 +1,82 @@
+---
+title: "population_scrape_week7"
+author: "Louise Brix Pilegaard Hansen"
+date: '2022-11-05'
+output: html_document
+---
+
+
+###2) use the rvest library to scrape data of your interest (football statistics in Wikipedia?, gender representatives in different governments? global population by country in https://www.worldometers.info/world-population/population-by-country/ )
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# installing packages
+library(tidyverse)
+library(rvest)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(janitor)
+```
+
+
+### Adapting the web-scraping pipeline from the police-killings markdown
+
+```{r}
+# getting the url and scraping the website
+url <- "https://www.worldometers.info/world-population/population-by-country/"
+url_html <- read_html(url)
+```
+
+
+```{r}
+whole_table <- url_html %>% 
+ html_nodes("table") %>%
+ html_table()  
+head(whole_table)
+
+new_table <- do.call(cbind,unlist(whole_table, recursive = FALSE)) 
+
+df <- as.data.frame(new_table)
+
+head(df)
+```
+
+### cleaning the df (only the columns of interest)
+
+```{r}
+# cleaning some columns in the df and changing their names
+clean_df <- df %>%
+  mutate(population = as.numeric(gsub(",","", df$`Population (2020)`))) %>% # remove commas
+  mutate(yearly_change = as.numeric(gsub("%","", df$`Yearly Change`))) %>% # remove %
+  mutate(density_per_sqr_km = as.numeric(gsub(",","", df$`Density (P/Km²)`))) %>%
+  mutate(country = `Country (or dependency)`) %>% 
+  select("country", "population", "yearly_change", "density_per_sqr_km")
+
+head(clean_df)
+```
+
+### exploring the data with a plot
+
+```{r}
+# only looking at the 15 most populated countries
+short_df <- arrange(clean_df, desc(population))[1:15, ] 
+
+# removing scientific notation
+options(scipen = 100)
+```
+
+
+```{r}
+# plotting density against yearly change in population size
+ggplot(short_df, aes(x = density_per_sqr_km, y = yearly_change, color = country, label = country, size = population)) +
+  geom_point()+
+  geom_text(size = 3, position = position_jitter(height = 0.25))+
+  theme_bw()+
+  scale_colour_discrete(guide = "none")+ # remove the 'country' legend
+  scale_y_continuous(labels = scales::percent_format(scale = 1))+
+  labs(x = "Population density per square kilometer", y = "Yearly change in population size")+
+  ggtitle("Density plotted against yearly change, 15 biggest countries")
+```
