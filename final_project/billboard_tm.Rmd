@@ -1,0 +1,128 @@
+---
+title: "topic_modelling"
+author: "Louise Brix Pilegaard Hansen"
+date: '2022-12-29'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("tidytext")
+library(tidyverse, topicmodels)
+library(tidytext)
+library(topicmodels)
+```
+
+# Topic modelling
+
+```{r}
+# read in correct lyrics
+lyrics_1982 <- read_csv("lyrics_1982.csv")
+lyrics_2002 <- read_csv("lyrics_2002.csv")
+lyrics_2022 <- read_csv("lyrics_2022.csv")
+
+lyrics <- list(lyrics_1982, lyrics_2002, lyrics_2022)
+```
+
+!hver sang er et document!
+
+remove "yeah" "woah" "uh" "da" "ah"
+```{r}
+own_sw <- c("yeah", "woah", "uh", "da", "ah")
+
+hej <- lyrics[[1]] %>% 
+  unnest_tokens(word, line) %>% 
+  anti_join(stop_words) %>% 
+  #filter(! word %in% own_sw)
+  filter(word != "yeah")
+
+```
+
+## tokenizing the lyrics and creating document term matrix
+
+```{r}
+topic_modelling <- function(df){
+  
+  own_sw <- c("yeah", "woah", "uh", "da", "ah", "uhh", "la", "ahh", "ooh", "doo", "em", "hey", "na")
+  
+  tokens <- df %>% 
+    unnest_tokens(word, line) %>% 
+    anti_join(stop_words) %>% 
+    filter(! word %in% own_sw)
+  
+  # creating a wordcount for each "document"(=song)
+  tokens_count <- tokens %>% 
+    group_by(song_id) %>% 
+    count(word)
+  
+  # creating document term matrix
+  dtm <- tokens_count %>% 
+    cast_dtm(song_id, word, n)
+  
+  # fitting LDA model
+  lda <- LDA(dtm, k = 3, control = list(seed = 1234))
+  
+  # plotting
+  topics <- tidy(lda, matrix = "beta")
+  
+  top_terms <- topics %>%
+    group_by(topic) %>%
+    slice_max(beta, n = 10) %>% 
+    ungroup() %>%
+    arrange(topic, -beta)
+
+  plot <- top_terms %>%
+    mutate(term = reorder_within(term, beta, topic)) %>%
+    ggplot(aes(beta, term, fill = factor(topic))) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free") +
+    scale_y_reordered()
+
+return(plot)
+  
+}
+```
+
+```{r}
+lda_list <- lapply(lyrics, topic_modelling)
+
+lapply(lyrics, topic_modelling)
+```
+
+```{r}
+topics <- tidy(lda_list[[2]], matrix = "beta")
+topics
+```
+
+```{r}
+top_terms <- topics %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+top_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered()
+```
+
+# ignore this // drafts
+
+```{r}
+length(unique(no_sw$word))
+
+# We probably don't want to include them all in a word cloud. Let's filter to only include the top 100 most frequent?
+top_100 <- no_sw[1:100, ]
+
+ggplot(data = top_100, aes(label = word, size = n)) +
+  geom_text_wordcloud_area(aes(color = n), shape = "diamond") +
+  scale_size_area(max_size = 12) +
+  scale_color_gradientn(colors = c("darkgreen","blue","red")) +
+  theme_minimal()
+```
