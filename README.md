@@ -1,4 +1,4 @@
-# au672746_Hansen_Louise_Brix_Pilegaard
+# Introduction to Cultural Data Science Repository: Louise Brix Pilegaard Hansen, AU672746
 
 This repository is created for the course *Introduction to Cultural Data Science* on the elective in Cultural Data Science at Aarhus University.
 
