@@ -4,6 +4,6 @@ This repository is created for the course *Introduction to Cultural Data Science
 
 ## Structure
 
-The folder **homework** contains the answers to the homework assignments throughout the course.
+The **homework** folder contains the answers to the homework assignments throughout the course.
 
-The folder **final_project** contains code, data and report for the final project "Topic Modeling on Popular Music Lyrics From 1982-2022"
+The **final_project** folder contains code, data and report for the final project "Topic Modeling on Popular Music Lyrics From 1982-2022"
