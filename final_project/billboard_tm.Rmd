@@ -5,55 +5,50 @@ date: '2022-12-29'
 output: html_document
 ---
 
+This markdown includes code to analyse the lyrics-data obtained in the "billboard_scrape.Rmd" file by applying the Topic Modelling method *LDA* 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
-install.packages("tidytext")
-library(tidyverse, topicmodels)
+```{r loading packages, message=FALSE, warning=FALSE}
+#install.packages("tidytext", "RColorBrewer")
+library(tidyverse)
 library(tidytext)
 library(topicmodels)
+library(RColorBrewer)
 ```
 
 # Topic modelling
 
-```{r}
-# read in correct lyrics
+### Loading data
+
+This data was scraped in the file "billboard_scrape.Rmd".
+
+```{r loading data, message=FALSE, warning=FALSE}
+# load lyrics dataframes
 lyrics_1982 <- read_csv("lyrics_1982.csv")
 lyrics_2002 <- read_csv("lyrics_2002.csv")
 lyrics_2022 <- read_csv("lyrics_2022.csv")
 
+# appending to a list
 lyrics <- list(lyrics_1982, lyrics_2002, lyrics_2022)
 ```
 
-!hver sang er et document!
-
-remove "yeah" "woah" "uh" "da" "ah"
-```{r}
-own_sw <- c("yeah", "woah", "uh", "da", "ah")
-
-hej <- lyrics[[1]] %>% 
-  unnest_tokens(word, line) %>% 
-  anti_join(stop_words) %>% 
-  #filter(! word %in% own_sw)
-  filter(word != "yeah")
-
-```
-
-## tokenizing the lyrics and creating document term matrix
-
-```{r}
+### Defining Topic Modelling function to organize the data and fit model
+```{r define topic modelling function}
 topic_modelling <- function(df){
   
+  # defining my own set of stopwords, which are words with no meaning that are highly prevalent in music-lyrics data
   own_sw <- c("yeah", "woah", "uh", "da", "ah", "uhh", "la", "ahh", "ooh", "doo", "em", "hey", "na")
   
+  # tokenizing and removing stopwords
   tokens <- df %>% 
     unnest_tokens(word, line) %>% 
-    anti_join(stop_words) %>% 
-    filter(! word %in% own_sw)
+    anti_join(stop_words) %>% # removing the stopwords defined in the 'tidytext' package
+    filter(! word %in% own_sw) # removing my own stopwords
   
-  # creating a wordcount for each "document"(=song)
+  # creating a wordcount for each word in each "document"(here, each song)
   tokens_count <- tokens %>% 
     group_by(song_id) %>% 
     count(word)
@@ -62,67 +57,54 @@ topic_modelling <- function(df){
   dtm <- tokens_count %>% 
     cast_dtm(song_id, word, n)
   
-  # fitting LDA model
-  lda <- LDA(dtm, k = 3, control = list(seed = 1234))
+  # fitting LDA model with three topics
+  lda <- LDA(dtm, k = 3, control = list(seed = 1234)) # the seeds ensures reproducibility of the results
   
   # plotting
-  topics <- tidy(lda, matrix = "beta")
+  topics <- tidy(lda, matrix = "beta") # extracting the word-topic probabilities from the model
   
+  # getting the 10 most common terms for each topic (10 words with highedst beta)
   top_terms <- topics %>%
     group_by(topic) %>%
     slice_max(beta, n = 10) %>% 
     ungroup() %>%
     arrange(topic, -beta)
-
+  
+  # plotting the 10 most common terms
   plot <- top_terms %>%
     mutate(term = reorder_within(term, beta, topic)) %>%
     ggplot(aes(beta, term, fill = factor(topic))) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ topic, scales = "free") +
-    scale_y_reordered()
+    scale_y_reordered()+
+    theme_bw()+
+    scale_fill_manual(values=c("#A7DFB6", "#71C287", "#2F994C"))
 
 return(plot)
-  
 }
 ```
 
-```{r}
-lda_list <- lapply(lyrics, topic_modelling)
+Code for the plot is adapted from: https://www.tidytextmining.com/topicmodeling.html 
 
-lapply(lyrics, topic_modelling)
+```{r run function, message=FALSE}
+# applying the function to my list of lyrics
+tm_plots <- lapply(lyrics, topic_modelling)
+
+tm_plots
 ```
 
-```{r}
-topics <- tidy(lda_list[[2]], matrix = "beta")
-topics
-```
+```{r save plots}
+# adding a title and saving the plots
 
-```{r}
-top_terms <- topics %>%
-  group_by(topic) %>%
-  slice_max(beta, n = 10) %>% 
-  ungroup() %>%
-  arrange(topic, -beta)
+plot_1982 <- tm_plots[[1]] + 
+  ggtitle("Word-topic probabilities, 1982")
+ggsave("plot_1982.png", width = 6, height = 4)
 
-top_terms %>%
-  mutate(term = reorder_within(term, beta, topic)) %>%
-  ggplot(aes(beta, term, fill = factor(topic))) +
-  geom_col(show.legend = FALSE) +
-  facet_wrap(~ topic, scales = "free") +
-  scale_y_reordered()
-```
+plot_2002 <- tm_plots[[2]] + 
+  ggtitle("Word-topic probabilities, 2002")
+ggsave("plot_2002.png", width = 6, height = 4)
 
-# ignore this // drafts
-
-```{r}
-length(unique(no_sw$word))
-
-# We probably don't want to include them all in a word cloud. Let's filter to only include the top 100 most frequent?
-top_100 <- no_sw[1:100, ]
-
-ggplot(data = top_100, aes(label = word, size = n)) +
-  geom_text_wordcloud_area(aes(color = n), shape = "diamond") +
-  scale_size_area(max_size = 12) +
-  scale_color_gradientn(colors = c("darkgreen","blue","red")) +
-  theme_minimal()
+plot_2022 <- tm_plots[[3]] + 
+  ggtitle("Word-topic probabilities, 2022")
+ggsave("plot_2022.png", width = 6, height = 4)
 ```

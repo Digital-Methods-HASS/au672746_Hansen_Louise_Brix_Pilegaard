@@ -5,13 +5,20 @@ date: '2022-12-05'
 output: html_document
 ---
 
+This markdown includes code to scrape the Billboard Hot 100 chart from billboard.com and extracting song lyrics from genius.com. Topic Modelling of the lyrics data can be found in the markdown "billboard_tm.Rmd".
+
+**NOTE**: Throughout this script, all "write_csv" commands have been commented out. This is to not overwrite the .csv files used for the Topic Modeling analysis, as running the functions from the geniusr packages sometimes cause unexpected and unsolvable errors with the API. In order to replicate the exact results of this project, it is recommended to use the .csv files provided in the GitHub repo. 
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r}
+```{r loading packages, message=FALSE, warning=FALSE}
 #install.packages('rvest')
+#install.packages('tidyverse')
+#install.packages('geniusr')
 library(rvest)
 library(tidyverse)
 library(geniusr)
@@ -19,27 +26,36 @@ library(geniusr)
 
 # Scraping billboard.com
 
-## could be improved
+### Define function to scrape billboard.com
 ```{r define scraper function}
 billboard_scraper <- function(url){
+  
+  # reading the url
   url_html <- read_html(url)
   
+  # the information to be extracted is nested in a html "list" element
   entries <- url_html %>% 
     html_elements("li")
   
+  # this scrapes the song titles, looking for information in the html class "c-title"
   titles <- entries %>% 
     html_elements(".c-title") %>% 
     html_text2() 
   
+  # this scrapes the artists, looking for information in the html class "c-label.a-no-trucate"
   artists <- url_html %>%
     html_nodes(".c-label.a-no-trucate") %>%
     html_text2()
-
+  
+  # saving as a dataframe
   return(data.frame(title = titles, artist = artists))
 }
 ```
 
-# could be improved (don't run )
+### Define the URLs to be scraped
+
+The URL of the charts from the first week of January, April, July and October in 1982, 2002 and 2022 is saved
+
 ```{r define URLs}
 # pick weeks and years 
 urls_1982 <- c("https://www.billboard.com/charts/hot-100/1982-01-09/", "https://www.billboard.com/charts/hot-100/1982-04-10/", "https://www.billboard.com/charts/hot-100/1982-07-10/", "https://www.billboard.com/charts/hot-100/1982-10-09/")
@@ -50,145 +66,119 @@ urls_2022 <- c("https://www.billboard.com/charts/hot-100/2022-01-08/", "https://
 ```
 
 
-# could be improved (don't run)
+### Applying the scraping function and saving to csv files
 ```{r scrape billboard URLs}
-#url_vec <- c(urls_1982, urls_2002, urls_2022)
 
 playlist_1982 <- lapply(urls_1982, billboard_scraper)
-playlist_1982 <- do.call(rbind, playlist_1982)
-playlist_1982$year <- "1982"
-write_csv(playlist_1982, "playlist_1982.csv")
+playlist_1982 <- do.call(rbind, playlist_1982) # combining all the df's from one year into one
+playlist_1982$year <- "1982" # adding the year
+#write_csv(playlist_1982, "playlist_1982.csv")
 
 playlist_2002 <- lapply(urls_2002, billboard_scraper)
 playlist_2002 <- do.call(rbind, playlist_2002)
 playlist_2002$year <- "2002"
-write_csv(playlist_2002, "playlist_2002.csv")
+#write_csv(playlist_2002, "playlist_2002.csv")
 
 playlist_2022 <- lapply(urls_2022, billboard_scraper)
 playlist_2022 <- do.call(rbind, playlist_2022)
 playlist_2022$year <- "2022"
-write_csv(playlist_2022, "playlist_2022.csv")
+#write_csv(playlist_2022, "playlist_2022.csv")
 ```
 
 
 # Getting lyrics from genius.com using the Genius API 
 
-I have created an environment variable containing my personal API token to genius.com. This key cannot be shared; to create your own, go to https://genius.com/api-clients
+I have created an environment variable containing my personal API token to genius.com. This key cannot be shared; to create your own, go to https://genius.com/api-clients.
 
-## read in all the songs
-```{r reading in data dont run}
+This token must be saved in an .Renviron as 'GENIUS_API_TOKEN' file in the correct directory on your machine (see https://stackoverflow.com/questions/40788645/how-to-create-renviron-file for different solutions for Windows, Linux and Mac).
+
+### Activate Genius API token
+```{r echo = T, results = 'hide'}
+Sys.getenv('GENIUS_API_TOKEN') # getting the value of environment variable containing the API token
+genius_token() # activate token
+```
+
+
+### Read in all the songs
+```{r reading in data, message=FALSE}
 playlist_1982 <- read_csv("playlist_1982.csv")
 playlist_2002 <- read_csv("playlist_2002.csv")
 playlist_2022 <- read_csv("playlist_2022.csv")
 
-#playlist_1982$title[15] <- "Why Do Fools Fall In Love"  
-
 playlists <- list(playlist_1982, playlist_2002, playlist_2022)
+```
 
-# replace lil nas x manually
-# fjern alt efter featuring
+### Cleaning the data
 
+The package geniusr requires the name of the artist to be typed in a way that is compatible with genius.com's search engine. This requires some cleaning of the "artist" column
+
+```{r data cleaning}
+# defining the cleaning function
 playlist_clean <- function(df){
-  df$artist <- str_replace_all(df$artist, "&", "and")
+  # replace "&", "X" and "," with "and"
+  df$artist <- str_replace_all(df$artist, "&", "and") 
   df$artist <- str_replace_all(df$artist, "(\\s[xX]\\s)", " and ")
   df$artist <- str_replace_all(df$artist, ",", " and")
+  
+  # remove the word featuring and everything after it
   df$artist <- str_replace_all(df$artist, "((Featuring))(?s)(.*$)", "")
   return(df)
 }
 
 playlists <- lapply(playlists, playlist_clean)
 
+# there is an artist in the 2022 called "Lil Nas X". The cleaning function have altered his name to "Lil Nas and." Adding his name back to the data
 playlists[[3]]$artist <- str_replace_all(playlists[[3]]$artist, "Lil Nas and", "Lil Nas X")
 ```
 
-```{r delete}
-song <- search_genius(search_term = "What Happened To Virgil Lil Durk")#search_genius(search_term = playlist$title[8])
 
-
-id <- song$content[[1]]$id
-
-get_lyrics_id(song_id = id)
-
-hej <- search_genius(paste0("Why Do Fools Fall In Love", " - ", "Diana Ross"))
-```
-
-
-```{r creating tryout-subset}
-#try82 <- playlist_1982[1:10, ]
-#try02 <- playlist_2002[1:10, ]
-#try22 <- playlist_2022[1:10, ]
-#playlists_try <- list(try82, try02, try22)
-```
-
-
-```{r activate api token}
-Sys.getenv('GENIUS_API_TOKEN') # getting the value of the API token
-genius_token() # activating it
-```
-
-```{r}
-## replace all X + & with "and". 
-## check that songs name match rather than song_id
-## remove songs that can't be found
-```
-
-
-### add ID and language
-```{r dont run}
+### Add ID and language
+```{r add ID and lang function, message=FALSE, warning=FALSE}
 add_id <- function(playlist){
   for (i in 1:length(playlist$title)){
   song <- playlist$title[i]
   artist <- playlist$artist[i]
-  print(song)
-  g_search <- try(search_genius(paste0(song, " - ", artist)))
-  playlist$id[i] <- try(g_search$content[[1]]$id)
-  try(playlist$lang[i] <- g_search$content[[1]]$language)
+  g_search <- try(search_genius(paste0(song, " - ", artist))) # search the song on genius
+  playlist$id[i] <- try(g_search$content[[1]]$id) # extract ID
+  try(playlist$lang[i] <- g_search$content[[1]]$language) #extract language
   }
-  
-  #playlist <- playlist %>% 
-  #filter(lang == "en")
   
   return(playlist)
 }
 ```
 
 
-```{r dont run}
-playlists <- lapply(playlists, add_id)
+```{r apply function}
+playlists <- lapply(playlists, add_id) # apply the function to the data
 
 # saving to csv to be sure
-all_songs <- do.call(rbind, playlists)
+all_songs <- do.call(rbind, playlists) # adding all songs to one playlist
 all_songs <- all_songs %>% 
-  filter(lang == "en") %>% 
-  filter(!str_detect(id, 'Error'))
+  filter(lang == "en") %>% # remove english songs
+  filter(!str_detect(id, 'Error')) # remove songs that returned an error
 
-write.csv(all_songs, "all_songs.csv")
+#write_csv(all_songs, "all_songs.csv")
 ```
 
-## getting the lyrics
-```{r}
+### Getting the lyrics
+```{r define lyrics scraper}
 lyrics_scraper <- function(df){
   lyrics_df <- NULL # initializing empty df
   for (i in 1:length(df$id)){ # looping over each song ID
     id <- df$id[i]
     lyrics <- try((get_lyrics_id(song_id = id)), silent = FALSE) # scraping lyrics
-    lyrics_df <- rbind(lyrics_df, lyrics)
+    lyrics_df <- rbind(lyrics_df, lyrics) # appending to df
   }
  return(lyrics_df)
 }
 ```
 
-
-```{r getting lyrics tryout}
-#playlist_lyrics_tryout <- lapply(playlists_try, lyrics_scraper) # returns a list of three dataframes, one for each year
-```
-
-```{r reading in playlist df}
+```{r reading in playlist df, message=FALSE, warning=FALSE}
 playlists_all <- read_csv("all_songs.csv")
 
 p_1982 <- playlists_all %>% 
   filter(year == 1982) %>% 
-  distinct(id, .keep_all = TRUE)
+  distinct(id, .keep_all = TRUE) # only keep unique songs
 
 p_2002 <- playlists_all %>% 
   filter(year == 2002) %>% 
@@ -202,76 +192,19 @@ playlists <- list(p_1982, p_2002, p_2022)
 ```
 
 
-```{r getting lyrics}
+```{r getting lyrics, message=FALSE, warning=FALSE}
 lyrics <- lapply(playlists, lyrics_scraper)
-
-write.csv(lyrics[[1]], "lyrics_1982.csv")
-write.csv(lyrics[[2]], "lyrics_2002.csv")
-write.csv(lyrics[[3]], "lyrics_2022.csv")
-```
-
-```{r}
-#lyrics_full_df <- do.call(rbind, lyrics)
-
-write.csv(lyrics_full_df, "lyrics_full_df.csv")
-
-write.csv(lyrics[[1]], "lyrics_1982.csv")
-write.csv(lyrics[[2]], "lyrics_2002.csv")
-write.csv(lyrics[[3]], "lyrics_2022.csv")
-```
-
-```{r}
-lyrics_1982 <- read_csv("lyrics_1982.csv")
-lyrics_2002 <- read_csv("lyrics_2002.csv")
-lyrics_2022 <- read_csv("lyrics_2022.csv")
-
-lyrics <- list(lyrics_1982, lyrics_2002, lyrics_2022)
 ```
 
 
-den importerer nogle mærkelige sange ved dem, den fejler på - bør måske bare slette dem i stedet?
+### Remove wrong songs
 
-The get_lyrics_id function somehow fails if you run it on many songs (I have tried searching for the song-ids that fail manually, and it works, so it's maybe the size of the playlist that makes it fail). Thus, the df requires some cleaning and running the function again on the missing songs: 
-
-```{r}
-for (i in 1:length(lyrics)){
-  #playlist <- playlist_lyrics_tryout[[i]]
-  ind <- which(playlists[[i]]$id %in% lyrics[[i]]$song_id)
-  songs_missing <- playlists[[i]]$title[-ind]
-  print(paste0("In playlist no ", i, " ", songs_missing, " is missing"))
-  
-  for (song in songs_missing){
-    id <- playlists[[i]]$id[which(playlists[[i]]$title == song)]
-    lyrics_df <- try((get_lyrics_id(song_id = id)), silent = FALSE)
-    lyrics[[i]] <- rbind(lyrics[[i]], lyrics_df)
-  }
-  lyrics[[i]] <- lyrics[[i]] %>% 
-    filter(!str_detect(song_id, 'Error'))
-  
-  print(lyrics[[i]])
-}
-```
-
-```{r}
-ind <- which(playlists[[3]]$artist %in% lyrics[[3]]$artist_name)
-songs_missing <- playlists[[3]]$title[-ind]
-songs_missing
-```
-
-```{r}
-tryout123 <- lyrics[[3]]
-```
-
-
-# remove NA's, certain songs and errors
-
-
-```{r}
+```{r define cleaning function}
 cleaner_fun <- function(df){
   df <- df %>% 
-  filter(artist_name != "Spotify") %>% 
-  filter(!str_detect(song_id, 'Error')) %>% 
-  filter(!str_detect(artist_name, 'Genius')) %>% 
+  filter(artist_name != "Spotify") %>% # remove songs where the API has returned Spotify playlists instead of songs
+  filter(!str_detect(song_id, 'Error')) %>% # remove songs where the API has returned errors
+  filter(!str_detect(artist_name, 'Genius')) %>% # remove songs where the API has returned Genius playlists or translations instead of the real song
   drop_na()
   
   return(df)
@@ -280,18 +213,17 @@ cleaner_fun <- function(df){
 lyrics <- lapply(lyrics, cleaner_fun)
 ```
 
-```{r}
+### Listing the ID's to the songs that have returned wrong results and removing them
+Some wrong songs could not be captured by the above cleaning function, and I have thus by visual inspection identified them as errornous.
+
+```{r remove wrong results}
 remove_82 <- c("6868363","4033274","480443","748742","581048","467863","491080","387797","297338","1868856","504292","2644622","5461894","2831404")
 
 remove_02 <- c("2422119", "3299443", "8176969", "409534", "3038244", "3038244")
 
 remove_22 <- c("7559954", "7507324", "7457331", "8687863", "8631841", "8451026", "7130381")
 
-#remove <- list(remove_82, remove_02, remove_22)
-
-```
-
-```{r}
+# removing the songs
 lyrics[[1]] <- lyrics[[1]] %>% 
   filter(! song_id %in% remove_82)
 
@@ -302,9 +234,10 @@ lyrics[[3]] <- lyrics[[3]] %>%
   filter(! song_id %in% remove_22)
 ```
 
-```{r}
-write.csv(lyrics[[1]], "lyrics_1982.csv")
-write.csv(lyrics[[2]], "lyrics_2002.csv")
-write.csv(lyrics[[3]], "lyrics_2022.csv")
+### Writing the final df's to csv files
+```{r write to csv}
+#write.csv(lyrics[[1]], "lyrics_1982.csv")
+#write.csv(lyrics[[2]], "lyrics_2002.csv")
+#write.csv(lyrics[[3]], "lyrics_2022.csv")
 ```
 
