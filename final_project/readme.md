@@ -3,7 +3,7 @@
 This folder containts the code, data and report for the exam project "Topic Modeling on Popular Music Lyrics from 1982-2022". 
 
 ## File- and metadata descriptions
-**billboard_scrape.Rmd**: This markdown containts the code to scrape data from the Billboard Hot 100 chart from several weeks of 1982, 2002 and 2022. It also containts the data to scrape the lyrics to these songs from genius.com
+**billboard_scrape.Rmd**: This markdown contains the code to scrape data from the Billboard Hot 100 chart from several weeks of 1982, 2002 and 2022. It also containts the data to scrape the lyrics to these songs from genius.com. **NOTE**: running this script requires the creation of an API client to genius.com. An API client token is personal, and mine can therefore not be shared for this project. To run the code on your own machine, a personal token can be made at https://genius.com/api-clients. This token must be saved in an .Renviron file in the correct directory on your machine (see https://stackoverflow.com/questions/40788645/how-to-create-renviron-file for different solutions for Windows, Linux and Mac) and activated in the R-script (code is provided for this in the script)
 
 **billboard_tm.Rmd**: This markdown contains the code to apply Topic Modeling to the data from the **billboard_scrape.Rmd** markdown.
 
