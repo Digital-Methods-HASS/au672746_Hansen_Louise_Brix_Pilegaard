@@ -2,6 +2,7 @@
 
 This folder containts the code, data and report for the exam project "Topic Modeling on Popular Music Lyrics from 1982-2022". 
 
+## File- and metadata descriptions
 **billboard_scrape.Rmd**: This markdown containts the code to scrape data from the Billboard Hot 100 chart from several weeks of 1982, 2002 and 2022. It also containts the data to scrape the lyrics to these songs from genius.com
 
 **billboard_tm.Rmd**: This markdown contains the code to apply Topic Modeling to the data from the **billboard_scrape.Rmd** markdown.
