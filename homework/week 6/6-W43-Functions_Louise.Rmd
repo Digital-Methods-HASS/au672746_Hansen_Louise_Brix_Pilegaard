@@ -8,7 +8,7 @@ output: html_document
 
 
 ### Loading the data and packages
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(gapminder)
 pacman::p_load("tidyverse")
 pacman::p_load("dplyr")
@@ -54,16 +54,10 @@ for (year in years){
 
 Write a script that loops over each country in the gapminder dataset, tests whether the country starts with a ‘B’ , and prints out whether the life expectancy is smaller than 50, between 50 and 70, or greater than 70. (Hint: remember the grepl function, and review the Control Flow tutorial)
 
-
 ```{r}
 for (i in unique(df$country)){ # for every unique country in the dataset
 
-  if (grepl('^B', i)){
-    print(paste0(i, " starts with B"))
-  }
-  else{
-    print(paste0(i, " does not start with B"))
-  }
+  if (grepl('^B', i)){ # if country starts with 'B'
   
   country_dat <- df %>% # creating dataframe with the country's data
     filter(country == i)
@@ -80,6 +74,6 @@ for (i in unique(df$country)){ # for every unique country in the dataset
   else if (lifeexp_mean > 70){
     print(paste0(i, " has a mean life expectancy of ", round(lifeexp_mean), " years, i.e., over 70 years"))
   }
+  }
 }
 ```
-
