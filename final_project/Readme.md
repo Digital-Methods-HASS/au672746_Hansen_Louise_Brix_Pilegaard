@@ -9,7 +9,7 @@ This folder contains the code, data and report for the exam project "Topic Model
 
 **lyrics_1982.csv**, **lyrics_2002.csv**, and **lyrics_2022.csv**: CSV files containing the preprocessed lyrics from the Billboard charts from 1982, 2002 and 2022. These files stem from running the .Rmd file “billboard_scrape.Rmd”. HOWEVER; using functions from the geniusr package resulted in some random errors (i.e., it was not always the same songs that resulted in errors). So, to replicate the exact findings of this project, you must run the Topic Modeling analysis found in the “billboard_tm.Rmd” script using these three CSV files. Furthermore, as obtaining the lyrics to all the songs is extremely time consuming, and it will take a long time to run **billboard_scrape.Rmd**, using these files is recommended.
 
-### The following files are additional .csv files that can be imported and used in the "billboard_scrape.Rmd" to avoid running the time-consuming functions using the genius API.
+### The following files are additional .csv files that can be imported and used in the "billboard_scrape.Rmd" to avoid running running some of the functions in the script
 
 **all_songs.csv**: csv file of songs from the billboard charts from all years that the lyrics-scraping function is run on
 
